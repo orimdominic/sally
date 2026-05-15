@@ -1,3 +1,4 @@
 .env
 tmp
 sample.txt
+node_modules
