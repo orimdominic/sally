@@ -1,0 +1,15 @@
+{
+  "name": "embedding-server",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "Orim Dominic Adah <orimdominic@gmail.com>",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.2.0"
+  }
+}
