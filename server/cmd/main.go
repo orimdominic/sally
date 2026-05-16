@@ -38,6 +38,12 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	if filepath.Ext(fileHeader.Filename) != ".pdf" {
+		fmt.Println(err)
+		http.Error(w, "Only .pdf is acceptable", http.StatusBadRequest)
+		return
+	}
+
 	filename := filepath.Base(fileHeader.Filename)
 	destPath := filepath.Join("./uploads", filename)
 	dest, err := os.Create(destPath)
