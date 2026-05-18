@@ -1,4 +1,8 @@
-.PHONY: embedding-server go-server serve
+.PHONY: embedding-server go-server serve init
+
+init:
+	cd embedding-server && npm install
+	cd server && go mod tidy
 
 embedding-server:
 	cd embedding-server && npm start
