@@ -2,45 +2,78 @@ package embedder
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"io"
 	"net/http"
+
+	"github.com/firebase/genkit/go/ai"
 )
 
-type requestJson struct {
-	Content string `json:"content"`
+type RemoteEmbedder struct {
+	URL string
 }
 
-type responseJson struct {
-	Embeddings []float64 `json:"embeddings"`
+type RemoteEmbeddingRequest struct {
+	Texts []string `json:"texts"`
 }
 
-func Embed(content string) ([]float64, error) {
-	b, err := json.Marshal(requestJson{Content: content})
-	if err != nil {
-		return nil, err
-	}
+type RemoteEmbeddingResponse struct {
+	Embeddings [][]float32 `json:"embeddings"`
+}
 
-	resp, err := http.Post(
-		"http://localhost:3333",
-		"application/json",
-		bytes.NewBuffer(b),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+func generateRemoteEmbedder(url string) ai.EmbedderFunc {
+	return func(ctx context.Context,
+		req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+		texts := make([]string, len(req.Input))
+		for i, d := range req.Input {
+			texts[i] = d.Content[0].Text
+		}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+		body, _ := json.Marshal(RemoteEmbeddingRequest{
+			Texts: texts,
+		})
 
-	var data responseJson
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		return nil, err
-	}
+		httpReq, _ := http.NewRequestWithContext(
+			ctx,
+			"POST",
+			url,
+			bytes.NewBuffer(body),
+		)
 
-	return data.Embeddings, nil
+		httpReq.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(httpReq)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		var out RemoteEmbeddingResponse
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			return nil, err
+		}
+
+		embeddings := make([]*ai.Embedding, len(out.Embeddings))
+
+		for i, e := range out.Embeddings {
+			embeddings[i] = &ai.Embedding{
+				Embedding: e,
+			}
+		}
+
+		return &ai.EmbedResponse{
+			Embeddings: embeddings,
+		}, nil
+	}
+}
+
+func NewRemoteEmbedder(url string) ai.Embedder {
+	return ai.NewEmbedder(
+		"HuggingFace-Xenova/all-MiniLM-L6-v2", &ai.EmbedderOptions{
+			Dimensions: 384,
+			Supports: &ai.EmbedderSupports{
+				Input:        []string{"text"},
+				Multilingual: false,
+			},
+		}, generateRemoteEmbedder(url))
 }
