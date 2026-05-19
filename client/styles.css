@@ -1,0 +1,44 @@
+body {
+  font-family: Verdana, sans-serif;
+  margin: 50px;
+  display: flex;
+  justify-content: center;
+}
+.upload-container {
+  max-width: 400px;
+  padding: 30px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.form-group {
+  margin-bottom: 20px;
+}
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: normal;
+}
+input[type="file"] {
+  display: block;
+  width: 100%;
+  border: solid 1px #AAA;
+  padding: 4px;
+}
+button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+}
+button:hover {
+box-shadow: 0 0 0 1px #3b82f6;
+}
+#statusMessage {
+  margin-top: 15px;
+  font-weight: bold;
+  text-align: center;
+}

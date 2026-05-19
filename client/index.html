@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Client</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="upload-container">
+      <h2>Upload Your PDF</h2>
+      <!-- The enctype attribute is crucial for file uploads -->
+      <form id="pdfUploadForm" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="pdfFile">Select PDF File:</label>
+          <input
+            type="file"
+            id="pdfFile"
+            name="pdfFile"
+            accept=".pdf"
+            required
+          />
+        </div>
+        <button type="submit">Upload to Server</button>
+      </form>
+
+      <div id="statusMessage"></div>
+    </div>
+
+    <script src="./index.js"></script>
+  </body>
+</html>
