@@ -184,6 +184,8 @@ func handleFileUpload(gktMngr *genkitai.GenkitManager) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "%s saved", fileHeader.Filename)
 	}
+type queryResults struct {
+	Results []string `json:"results"`
 }
 
 func handleQuery(gktMngr *genkitai.GenkitManager) http.HandlerFunc {
@@ -197,14 +199,11 @@ func handleQuery(gktMngr *genkitai.GenkitManager) http.HandlerFunc {
 			return
 		}
 
-		var sb strings.Builder
-		for _, s := range results {
-			sb.Write([]byte(s))
-			sb.Write([]byte("\n\n"))
+		res := queryResults{
+			Results: results,
 		}
-
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(sb.String()))
+		json.NewEncoder(w).Encode(&res)
 	}
 }
 
