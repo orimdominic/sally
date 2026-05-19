@@ -3,6 +3,7 @@ package genkitai
 import (
 	"bytes"
 	"context"
+	"os"
 
 	"github.com/dslipak/pdf"
 	"github.com/firebase/genkit/go/ai"
@@ -20,6 +21,7 @@ type GenkitManager struct {
 	retriever ai.Retriever
 }
 
+var mngr *GenkitManager
 var indexPDFFlow *core.Flow[string, any, struct{}]
 var queryDocFlow *core.Flow[string, []string, struct{}]
 
@@ -105,7 +107,11 @@ func (mngr *GenkitManager) RegisterFlows() {
 		})
 }
 
-func NewGenkit(ctx context.Context) (*GenkitManager, error) {
+func NewGenkitManager(ctx context.Context) (*GenkitManager, error) {
+	if mngr != nil {
+		return mngr, nil
+	}
+
 	var gkt *genkit.Genkit
 	if ctx != nil {
 		gkt = genkit.Init(ctx)
@@ -122,11 +128,13 @@ func NewGenkit(ctx context.Context) (*GenkitManager, error) {
 		return nil, err
 	}
 
+	embeddingsDir := "./embeddings"
+	os.MkdirAll(embeddingsDir, os.ModePerm)
 	docStore, retriever, err := localvec.DefineRetriever(
 		gkt,
 		"document",
 		localvec.Config{
-			Dir:      "./embeddings",
+			Dir:      embeddingsDir,
 			Embedder: embedder.NewRemoteEmbedder("http://localhost:3333"),
 		},
 		nil,
@@ -136,15 +144,16 @@ func NewGenkit(ctx context.Context) (*GenkitManager, error) {
 		return nil, err
 	}
 
-	mngr := &GenkitManager{
+	manager := &GenkitManager{
 		gkt:       gkt,
 		splitter:  splitter,
 		docStore:  docStore,
 		retriever: retriever,
 	}
 
-	mngr.RegisterFlows()
-	return mngr, nil
+	manager.RegisterFlows()
+	mngr = manager
+	return manager, nil
 }
 
 // readPdf is a helper function to extract plain text from a PDF. Excerpted from
