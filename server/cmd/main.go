@@ -52,7 +52,7 @@ func main() {
 	}))
 
 	r.Post("/documents", handleFileUpload(gktMngr))
-	r.Post("/query", handleQuery(gktMngr))
+	r.Get("/query", handleQuery(gktMngr))
 	r.Get("/publickey", handleGetPublicKey)
 
 	port := ":8888"
