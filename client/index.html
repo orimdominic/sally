@@ -8,7 +8,6 @@
   </head>
   <body>
     <div class="upload-container">
-      <h2>Upload Your PDF</h2>
       <!-- The enctype attribute is crucial for file uploads -->
       <form id="pdfUploadForm" enctype="multipart/form-data">
         <div class="form-group">
@@ -25,6 +24,28 @@
       </form>
 
       <div id="statusMessage"></div>
+
+      <hr class="section-divider" />
+
+      <!-- NEW: TEXT INPUT & LIST SECTION -->
+      <div class="text-list-container">
+        <form id="sentenceForm">
+          <div class="form-group">
+            <label for="sentenceInput">Type your search:</label>
+            <input
+              type="text"
+              id="sentenceInput"
+              placeholder="Enter your search"
+              required
+            />
+          </div>
+          <button type="submit">Search</button>
+        </form>
+
+        <ul id="sentenceList">
+          <!-- Sentences will appear here dynamically -->
+        </ul>
+      </div>
     </div>
 
     <script src="./index.js"></script>
