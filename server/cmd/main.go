@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -14,16 +15,26 @@ import (
 	"syscall"
 	"time"
 
-	// "strings"
-
+	"github.com/SherClockHolmes/webpush-go"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
 	"github.com/orimdominic/sally/server/internal/genkitai"
 )
 
 const maxUploadSize = 10 << 20 // 10 * 1024 * 1024 i.e 10 MB
+var VAPID_PUBLIC_KEY string
+var VAPID_PRIVATE_KEY string
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+	VAPID_PUBLIC_KEY = os.Getenv("VAPID_PUBLIC_KEY")
+	VAPID_PRIVATE_KEY = os.Getenv("VAPID_PRIVATE_KEY")
+
 	ctx := context.Background()
 	gktMngr, err := genkitai.NewGenkit(ctx)
 	if err != nil {
@@ -32,8 +43,17 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Content-Type"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any major browsers
+	}))
+
 	r.Post("/documents", handleFileUpload(gktMngr))
 	r.Post("/query", handleQuery(gktMngr))
+	r.Get("/publickey", handleGetPublicKey)
 
 	port := ":8888"
 	srv := &http.Server{
@@ -59,10 +79,19 @@ func main() {
 	)
 	defer cancel()
 
-	log.Println("shutting down...")
+	log.Println("Shutting down...")
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Fatal(err)
 	}
+}
+
+type pushSubscription struct {
+	Endpoint       string     `json:"endpoint"`
+	ExpirationTime *time.Time `json:"expirationTime"`
+	Keys           struct {
+		P256dh string `json:"p256dh"`
+		Auth   string `json:"auth"`
+	} `json:"keys"`
 }
 
 func handleFileUpload(gktMngr *genkitai.GenkitManager) http.HandlerFunc {
@@ -122,6 +151,36 @@ func handleFileUpload(gktMngr *genkitai.GenkitManager) http.HandlerFunc {
 			return
 		}
 
+		subVal := r.FormValue("subscription")
+		var subscription pushSubscription
+		json.Unmarshal([]byte(subVal), &subscription)
+		clientSub := webpush.Subscription{
+			Endpoint: subscription.Endpoint,
+			Keys: webpush.Keys{
+				Auth:   subscription.Keys.Auth,
+				P256dh: subscription.Keys.P256dh,
+			},
+		}
+		payload := fmt.Appendf(
+			nil,
+			`{"title": "Processing complete", "body": "%s has been saved and embedded."}`,
+			fileHeader.Filename,
+		)
+
+		resp, err := webpush.SendNotification(payload, &clientSub, &webpush.Options{
+			Subscriber:      "https://example.com", // Must be a mailto: or website URL
+			VAPIDPublicKey:  VAPID_PUBLIC_KEY,
+			VAPIDPrivateKey: VAPID_PRIVATE_KEY,
+			TTL:             10,
+		})
+
+		if err != nil {
+			fmt.Printf("error sending push notification %+v", err)
+			fmt.Fprintf(w, "%s saved", fileHeader.Filename)
+			return
+		}
+		defer resp.Body.Close()
+
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "%s saved", fileHeader.Filename)
 	}
@@ -165,4 +224,14 @@ func IsPDF(file multipart.File) (bool, error) {
 	contentType := http.DetectContentType(buffer[:n])
 
 	return contentType == "application/pdf", nil
+}
+
+type publicKeyResponse struct {
+	PublicKey string `json:"publicKey"`
+}
+
+func handleGetPublicKey(w http.ResponseWriter, _ *http.Request) {
+	json.NewEncoder(w).Encode(&publicKeyResponse{
+		PublicKey: VAPID_PUBLIC_KEY,
+	})
 }

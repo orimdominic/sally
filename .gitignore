@@ -4,5 +4,4 @@ sample.txt
 node_modules
 */uploads
 */embeddings
-/.genkit
-*/.genkit
+.genkit
