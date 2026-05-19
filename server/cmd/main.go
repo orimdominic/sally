@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -19,27 +18,38 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 	"github.com/orimdominic/sally/server/internal/genkitai"
+	bgtask "github.com/orimdominic/sally/server/internal/task"
 )
-
-const maxUploadSize = 10 << 20 // 10 * 1024 * 1024 i.e 10 MB
-var VAPID_PUBLIC_KEY string
-var VAPID_PRIVATE_KEY string
 
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
-	VAPID_PUBLIC_KEY = os.Getenv("VAPID_PUBLIC_KEY")
-	VAPID_PRIVATE_KEY = os.Getenv("VAPID_PRIVATE_KEY")
+
+	go func() {
+		err = bgtask.StartServer()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	ctx := context.Background()
-	gktMngr, err := genkitai.NewGenkit(ctx)
+	gktMngr, err := genkitai.NewGenkitManager(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	redisOpt := asynq.RedisClientOpt{Addr: "localhost:6379"}
+	bgTasksClient := asynq.NewClient(redisOpt)
+	err = bgTasksClient.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer bgTasksClient.Close()
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -48,10 +58,10 @@ func main() {
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type"},
 		AllowCredentials: true,
-		MaxAge:           300, // Maximum value not ignored by any major browsers
+		MaxAge:           300,
 	}))
 
-	r.Post("/documents", handleFileUpload(gktMngr))
+	r.Post("/documents", handleFileUpload(bgTasksClient))
 	r.Get("/query", handleQuery(gktMngr))
 	r.Get("/publickey", handleGetPublicKey)
 
@@ -86,16 +96,16 @@ func main() {
 }
 
 type pushSubscription struct {
-	Endpoint       string     `json:"endpoint"`
-	ExpirationTime *time.Time `json:"expirationTime"`
-	Keys           struct {
+	Endpoint string `json:"endpoint"`
+	Keys     struct {
 		P256dh string `json:"p256dh"`
 		Auth   string `json:"auth"`
 	} `json:"keys"`
 }
 
-func handleFileUpload(gktMngr *genkitai.GenkitManager) http.HandlerFunc {
+func handleFileUpload(bgTaskClient *asynq.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		const maxUploadSize = 10 << 20 // 10 * 1024 * 1024 i.e 10 MB
 		r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
 			http.Error(w, "File too large", http.StatusRequestEntityTooLarge)
@@ -110,15 +120,9 @@ func handleFileUpload(gktMngr *genkitai.GenkitManager) http.HandlerFunc {
 		defer file.Close()
 
 		ok, err := IsPDF(file)
-		if err != nil {
+		if err != nil || !ok {
 			fmt.Println(err)
-			http.Error(w, "Invalid file", http.StatusBadRequest)
-			return
-		}
-
-		if !ok {
-			fmt.Println(err)
-			http.Error(w, "Only .pdf is acceptable", http.StatusBadRequest)
+			http.Error(w, "Invalid pdf file", http.StatusBadRequest)
 			return
 		}
 
@@ -144,46 +148,44 @@ func handleFileUpload(gktMngr *genkitai.GenkitManager) http.HandlerFunc {
 			return
 		}
 
-		err = gktMngr.IndexPDFDocument(r.Context(), dstPath)
+		subVal := r.FormValue("subscription")
+		var subscription pushSubscription
+		err = json.Unmarshal([]byte(subVal), &subscription)
 		if err != nil {
-			fmt.Println(err)
-			http.Error(w, "Failed to index document", http.StatusInternalServerError)
+			fmt.Println("Invalid subscription key")
+			http.Error(w, "Invalid subscription key. Retry", http.StatusInternalServerError)
 			return
 		}
 
-		subVal := r.FormValue("subscription")
-		var subscription pushSubscription
-		json.Unmarshal([]byte(subVal), &subscription)
-		clientSub := webpush.Subscription{
+		t, err := bgtask.NewIndexPDFDocTask(dstPath, &webpush.Subscription{
 			Endpoint: subscription.Endpoint,
 			Keys: webpush.Keys{
 				Auth:   subscription.Keys.Auth,
 				P256dh: subscription.Keys.P256dh,
 			},
-		}
-		payload := fmt.Appendf(
-			nil,
-			`{"title": "Processing complete", "body": "%s has been saved and embedded."}`,
-			fileHeader.Filename,
-		)
-
-		resp, err := webpush.SendNotification(payload, &clientSub, &webpush.Options{
-			Subscriber:      "https://example.com", // Must be a mailto: or website URL
-			VAPIDPublicKey:  VAPID_PUBLIC_KEY,
-			VAPIDPrivateKey: VAPID_PRIVATE_KEY,
-			TTL:             10,
 		})
-
 		if err != nil {
-			fmt.Printf("error sending push notification %+v", err)
-			fmt.Fprintf(w, "%s saved", fileHeader.Filename)
+			fmt.Printf("could not create %s task. %v\n", bgtask.TypeIndexPDFDoc, err)
+			http.Error(w, "Failed to index document. Retry", http.StatusInternalServerError)
 			return
 		}
-		defer resp.Body.Close()
+
+		_, err = bgTaskClient.Enqueue(t)
+		if err != nil {
+			fmt.Printf("could not start document processing. %v\n", err)
+			http.Error(w, "Failed to index document. Retry", http.StatusInternalServerError)
+			return
+		}
 
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "%s saved", fileHeader.Filename)
+		fmt.Fprintf(
+			w,
+			"%s saved. You will be notified when processing is complete",
+			fileHeader.Filename,
+		)
 	}
+}
+
 type queryResults struct {
 	Results []string `json:"results"`
 }
@@ -230,6 +232,7 @@ type publicKeyResponse struct {
 }
 
 func handleGetPublicKey(w http.ResponseWriter, _ *http.Request) {
+	VAPID_PUBLIC_KEY := os.Getenv("VAPID_PUBLIC_KEY")
 	json.NewEncoder(w).Encode(&publicKeyResponse{
 		PublicKey: VAPID_PUBLIC_KEY,
 	})
