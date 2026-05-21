@@ -17,7 +17,6 @@ import (
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 	"github.com/orimdominic/sally/server/internal/genkitai"
@@ -53,14 +52,9 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://*", "http://*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Content-Type"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
 
+	fs := http.FileServer(http.Dir("./static"))
+	r.Handle("/*", http.StripPrefix("/", fs))
 	r.Post("/documents", handleFileUpload(bgTasksClient))
 	r.Get("/query", handleQuery(gktMngr))
 	r.Get("/publickey", handleGetPublicKey)
