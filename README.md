@@ -63,8 +63,6 @@ When the processing is complete in the background, the user is sent a push notif
 
 https://github.com/user-attachments/assets/1c5acb2f-e463-4cd0-88e7-40135b012d15
 
-
-
 ## Caveats
 
 This project is not production-grade. It was built to show that this was a possible solution to the challenge. You can also use emails to solve this issue.
