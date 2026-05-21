@@ -59,7 +59,7 @@ When the processing is complete in the background, the user is sent a push notif
 
 ## Video Demo
 
-![Sally Demo](./assets/sally-demo.mp4)
+https://github.com/user-attachments/assets/1c5acb2f-e463-4cd0-88e7-40135b012d15
 
 ## Caveats
 
