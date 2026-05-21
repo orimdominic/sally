@@ -1,8 +1,0 @@
-{
-  "scripts": {
-    "webpushkeys": "web-push generate-vapid-keys --json"
-  },
-  "dependencies": {
-    "web-push": "^3.6.7"
-  }
-}

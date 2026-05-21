@@ -8,6 +8,7 @@ require (
 	github.com/firebase/genkit/go v1.8.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
+	github.com/hibiken/asynq v0.26.0
 	github.com/joho/godotenv v1.5.1
 	github.com/tmc/langchaingo v0.1.14
 )
@@ -17,7 +18,6 @@ require (
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -25,7 +25,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/dotprompt/go v0.0.0-20251014011017-8d056e027254 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/hibiken/asynq v0.26.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mbleigh/raymond v0.0.0-20250414171441-6b3a58ab9e0a // indirect
