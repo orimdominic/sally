@@ -15,7 +15,7 @@ navigator.serviceWorker.ready.then(async function (registration) {
 		return subscription;
 	}
 
-	const response = await fetch("http://localhost:8888/publickey", {
+	const response = await fetch("/publickey", {
 		method: "GET",
 	});
 	const { publicKey } = await response.json();
@@ -72,7 +72,7 @@ document
 		statusMessage.textContent = "Uploading...";
 
 		try {
-			const backendUrl = "http://localhost:8888/documents";
+			const backendUrl = "/documents";
 
 			const response = await fetch(backendUrl, {
 				method: "POST",
@@ -114,7 +114,7 @@ document
 		try {
 			const queryParams = new URLSearchParams({ query: rawTextValue });
 
-			const targetUrl = `http://localhost:8888/query?${queryParams.toString()}`;
+			const targetUrl = `/query?${queryParams.toString()}`;
 
 			const response = await fetch(targetUrl, {
 				method: "GET",

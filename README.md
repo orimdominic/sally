@@ -38,11 +38,9 @@ You need to have the following installed on your computer:
 
 Procedure:
 
-- Run `make init` to install projects dependencies
+- Run `make init` to install projects' dependencies and create the `.env` file
 - Run `make serve`
-- Create a `.env` file in `server/`.
-- [Generate VAPID keys](https://github.com/SherClockHolmes/webpush-go#generating-vapid-keys) only once and include them in `.env` using the format in `.env.template`
-- In the `client` directory, run `live-server` or any other file server you have to serve the frontend.
+- Visit [http://localhost:8888](http://localhost:8888)
 
 ## Architecture
 
