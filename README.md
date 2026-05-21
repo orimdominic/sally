@@ -61,9 +61,7 @@ When the processing is complete in the background, the user is sent a push notif
 
 ## Video Demo
 
-<video width="320" height="240" controls>
-  <source src="./assets/sally-demo.mp4" type="video/mp4">
-</video>
+![Sally Demo](./assets/sally-demo.mp4)
 
 ## Caveats
 
