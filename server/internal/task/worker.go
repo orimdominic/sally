@@ -42,7 +42,7 @@ func handleIndexPDF(ctx context.Context, t *asynq.Task) error {
 
 	err = gktMngr.IndexPDFDocument(ctx, p.FPath)
 	if err != nil {
-		return err
+		return pushnotif.NotifyEmbeddingFailed(p.ClientSub)
 	}
 
 	return pushnotif.NotifyEmbeddingCompleted(p.ClientSub)
