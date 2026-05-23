@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/hibiken/asynq"
 	"github.com/orimdominic/sally/server/internal/genkitai"
@@ -42,8 +43,24 @@ func handleIndexPDF(ctx context.Context, t *asynq.Task) error {
 
 	err = gktMngr.IndexPDFDocument(ctx, p.FPath)
 	if err != nil {
-		return pushnotif.NotifyEmbeddingFailed(p.ClientSub)
+		var fullErr error
+		ePN := pushnotif.NotifyEmbeddingFailed(p.ClientSub)
+		fullErr = fmt.Errorf("failed to push notify client %w", ePN)
+		eDel := os.Remove(p.FPath)
+		if ePN != nil && eDel != nil {
+			return nil
+		}
+
+		return fmt.Errorf("failed to delete file: %w %v", eDel, fullErr)
 	}
 
-	return pushnotif.NotifyEmbeddingCompleted(p.ClientSub)
+	var fullErr error
+	ePN := pushnotif.NotifyEmbeddingCompleted(p.ClientSub)
+	fullErr = fmt.Errorf("failed to push notify client %w", ePN)
+	eDel := os.Remove(p.FPath)
+	if ePN != nil && eDel != nil {
+		return nil
+	}
+
+	return fmt.Errorf("failed to delete file: %w %v", eDel, fullErr)
 }
